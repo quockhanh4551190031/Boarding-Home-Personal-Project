@@ -28,6 +28,8 @@ jobs:
 
     - name: Install Dependencies
       run: pnpm install --frozen-lockfile
+      env:
+        PNPM_ALLOW_BUILDS: "prisma,@prisma/engines"
 
     - name: Build Frontend
       run: pnpm --filter client run build
