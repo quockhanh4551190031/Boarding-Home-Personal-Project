@@ -17,11 +17,5 @@
       "onFail": "download"
     }
   },
-  "type": "module",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@prisma/engines",
-      "prisma"
-    ]
-  }
+  "type": "module"
 }
