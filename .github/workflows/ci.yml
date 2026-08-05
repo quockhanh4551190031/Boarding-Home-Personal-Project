@@ -27,12 +27,7 @@ jobs:
         cache: 'pnpm'
 
     - name: Install dependencies
-        # --ignore-scripts sẽ chặn mọi post-install, giúp pnpm cài đặt thành công 100% mà không văng lỗi bảo mật
-        run: pnpm install --frozen-lockfile --ignore-scripts
-
-  - name: Generate Prisma Client
-        # Vì đã chặn script ở trên, ta cần tự chạy lệnh generate của prisma
-        run: pnpm exec prisma generate
+      run: pnpm install --frozen-lockfile
 
     - name: Build Frontend
       run: pnpm --filter client run build
