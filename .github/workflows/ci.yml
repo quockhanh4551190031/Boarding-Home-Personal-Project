@@ -27,9 +27,7 @@ jobs:
         cache: 'pnpm'
 
     - name: Install Dependencies
-      run: pnpm install --frozen-lockfile
-      env:
-        PNPM_ALLOW_BUILDS: "prisma,@prisma/engines"
+      run: pnpm install --frozen-lockfile --config.only-built-dependencies=prisma --config.only-built-dependencies=@prisma/engines
 
     - name: Build Frontend
       run: pnpm --filter client run build
