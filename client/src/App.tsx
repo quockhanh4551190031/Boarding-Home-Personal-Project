@@ -4,170 +4,123 @@ import viteLogo from './assets/vite.svg'
 import './App.css'
 
 function App() {
-  // State quản lý số lượng người đăng ký Beta & thông tin Form
-  const [testerCount, setTesterCount] = useState(128)
-  const [hasJoined, setHasJoined] = useState(false)
-  const [email, setEmail] = useState('')
-  const [feedback, setFeedback] = useState('')
-  const [isSubmitted, setIsSubmitted] = useState(false)
-
-  const handleJoinBeta = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (email && !hasJoined) {
-      setTesterCount((prev) => prev + 1)
-      setHasJoined(true)
-    }
-  }
-
-  const handleSendFeedback = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (feedback.trim()) {
-      setIsSubmitted(true)
-      setFeedback('')
-      setTimeout(() => setIsSubmitted(false), 3000)
-    }
-  }
-
   return (
-    <div className="app-container">
-      {/* Banner thông báo Beta */}
-      <div className="beta-badge">
-        <span className="pulse-dot"></span> Phiên bản thử nghiệm (Beta v0.1.0)
-      </div>
+    <>
+      <section className="hero">
+        <div className="hero-content">
+          <span className="badge">🚧 Phase Testing</span>
 
-      {/* Hero Section */}
-      <section id="center">
-        <div className="hero-header">
-          <h1>BoardingHub 🏠</h1>
+          <h1>Boarding Home Social</h1>
+
           <p className="subtitle">
-            Mạng xã hội kết nối cộng đồng nhà trọ, tìm bạn ở ghép & đánh giá khu trọ minh bạch.
+            Discover boarding houses, connect with roommates, and share your
+            living experience in one community platform.
           </p>
+
+          <div className="buttons">
+            <button className="primary">Join Beta</button>
+            <button className="secondary">Learn More</button>
+          </div>
         </div>
 
-        {/* Thống kê & Form đăng ký Tester */}
-        <div className="card tester-card">
-          <h3>Đăng ký trải nghiệm sớm</h3>
-          <p>Hiện đã có <strong>{testerCount}</strong> Testers đang tham gia đánh giá ứng dụng.</p>
-
-          {!hasJoined ? (
-            <form onSubmit={handleJoinBeta} className="form-inline">
-              <input
-                type="email"
-                placeholder="Nhập email của bạn..."
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              <button type="submit" className="btn-primary">
-                Tham gia Beta
-              </button>
-            </form>
-          ) : (
-            <div className="success-msg">
-              🎉 Cảm ơn bạn! Chúng tôi đã ghi nhận email <strong>{email}</strong> vào danh sách trải nghiệm sớm.
-            </div>
-          )}
+        <div className="hero-image">
+          <img
+            src="https://placehold.co/500x350"
+            alt="Boarding Home"
+          />
         </div>
       </section>
 
-      <div className="ticks"></div>
+      <section className="features">
+        <h2>What you can do</h2>
 
-      {/* Tính năng chính đang testing */}
-      <section id="features">
-        <h2>Tính năng đang thử nghiệm 🧪</h2>
-        <div className="feature-grid">
-          <div className="feature-item">
-            <span className="icon">🔍</span>
-            <h3>Tìm bạn ở ghép</h3>
-            <p>Kết nối người ở ghép dựa trên thói quen sinh hoạt và độ tương thích.</p>
+        <div className="cards">
+          <div className="card">
+            <h3>🏠 Find Boarding Houses</h3>
+            <p>
+              Search boarding homes by location, price, and available
+              facilities.
+            </p>
           </div>
-          <div className="feature-item">
-            <span className="icon">⭐</span>
-            <h3>Review Khu Trọ</h3>
-            <p>Đánh giá an ninh, điện nước, chủ trọ từ cộng đồng người thuê thực tế.</p>
+
+          <div className="card">
+            <h3>👥 Find Roommates</h3>
+            <p>
+              Connect with people who have similar lifestyles and budgets.
+            </p>
           </div>
-          <div className="feature-item">
-            <span className="icon">💬</span>
-            <h3>Bảng tin Xóm Trọ</h3>
-            <p>Đăng tin nhượng phòng, thanh lý đồ đạc và giao lưu nội bộ khu phố.</p>
+
+          <div className="card">
+            <h3>⭐ Reviews</h3>
+            <p>
+              Read honest reviews from students and workers before renting.
+            </p>
+          </div>
+
+          <div className="card">
+            <h3>💬 Community</h3>
+            <p>
+              Ask questions, share experiences, and receive helpful advice from
+              other tenants.
+            </p>
           </div>
         </div>
       </section>
 
-      <div className="ticks"></div>
+      <section className="testing">
+        <h2>Testing Progress</h2>
 
-      {/* Form đóng góp ý kiến & Kênh hỗ trợ */}
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Gửi phản hồi Beta</h2>
-          <p>Phát hiện lỗi (bug) hoặc có góp ý tính năng? Hãy báo cho đội ngũ phát triển:</p>
+        <div className="status-grid">
+          <div className="status-card">
+            <h3>Authentication</h3>
+            <p>✅ Completed</p>
+          </div>
 
-          <form onSubmit={handleSendFeedback} className="feedback-form">
-            <textarea
-              rows={3}
-              placeholder="Mô tả lỗi hoặc góp ý của bạn tại đây..."
-              value={feedback}
-              onChange={(e) => setFeedback(e.target.value)}
-              required
-            ></textarea>
-            <button type="submit" className="btn-secondary">
-              Gửi phản hồi
-            </button>
-            {isSubmitted && <span className="feedback-success">✅ Cảm ơn ý kiến đóng góp của bạn!</span>}
-          </form>
-        </div>
+          <div className="status-card">
+            <h3>Post Feed</h3>
+            <p>🟡 In Testing</p>
+          </div>
 
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
+          <div className="status-card">
+            <h3>Messaging</h3>
+            <p>🟡 In Testing</p>
+          </div>
 
-          <h2>Cộng đồng Tester</h2>
-          <p>Giao lưu và cập nhật tiến độ phát triển dự án</p>
+          <div className="status-card">
+            <h3>Boarding Search</h3>
+            <p>✅ Completed</p>
+          </div>
 
-          <ul>
-            <li>
-              <a href="https://github.com" target="_blank" rel="noreferrer">
-                <svg className="button-icon" role="presentation" aria-hidden="true">
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                Source Code (GitHub)
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank" rel="noreferrer">
-                <svg className="button-icon" role="presentation" aria-hidden="true">
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Kênh Discord Tester
-              </a>
-            </li>
-            <li>
-              <a href="https://facebook.com" target="_blank" rel="noreferrer">
-                <svg className="button-icon" role="presentation" aria-hidden="true">
-                  <use href="/icons.svg#social-icon"></use>
-                </svg>
-                Group Facebook Báo Lỗi
-              </a>
-            </li>
-          </ul>
+          <div className="status-card">
+            <h3>Reviews</h3>
+            <p>🟡 In Testing</p>
+          </div>
+
+          <div className="status-card">
+            <h3>Notifications</h3>
+            <p>🚧 Coming Soon</p>
+          </div>
         </div>
       </section>
 
-      <div className="ticks"></div>
+      <section className="feedback">
+        <h2>Help us improve</h2>
 
-      {/* Footer kỹ thuật */}
-      <footer className="footer-tech">
         <p>
-          Xây dựng trên nền tảng <img src={viteLogo} className="mini-logo" alt="Vite" /> Vite +{' '}
-          <img src={reactLogo} className="mini-logo" alt="React" /> React
+          This website is currently in the testing phase. Your feedback helps us
+          build a better platform for everyone looking for boarding homes.
         </p>
+
+        <button className="primary">
+          Send Feedback
+        </button>
+      </section>
+
+      <footer>
+        <p>© 2026 Boarding Home Social - Beta Testing</p>
       </footer>
-    </div>
-  )
+    </>
+  );
 }
 
-export default App
+export default App;
