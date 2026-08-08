@@ -1,11 +1,5 @@
 {
   "version": 2,
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/server/src/api/index.ts"
-    }
-  ],
   "builds": [
     {
       "src": "client/package.json",
@@ -17,6 +11,24 @@
     {
       "src": "server/src/api/index.ts",
       "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/server/src/api/index.ts"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/client/assets/$1"
+    },
+    {
+      "src": "/(.*\\.[^/]+)",
+      "dest": "/client/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/client/index.html"
     }
   ]
 }
