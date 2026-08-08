@@ -2,12 +2,19 @@
   "name": "shared",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "schemas/auth.schema.ts",
+  "types": "schemas/auth.schema.ts",
+  "exports": {
+    ".": "./schemas/auth.schema.ts"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "zod": "^3.25.76"
+  }
 }
