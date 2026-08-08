@@ -4,14 +4,10 @@ lockfileVersion: '9.0'
 importers:
 
   .:
-    configDependencies: {}
-    packageManagerDependencies:
-      '@pnpm/exe':
-        specifier: ^11.20.0
-        version: 11.20.0
-      pnpm:
-        specifier: ^11.20.0
-        version: 11.20.0
+    dependencies:
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
 
 packages:
 
@@ -205,7 +201,11 @@ settings:
 
 importers:
 
-  .: {}
+  .:
+    dependencies:
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
 
   client:
     dependencies:
