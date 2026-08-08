@@ -29,5 +29,11 @@ jobs:
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
 
+    - name: Type-check Backend
+      run: pnpm --filter server typecheck
+
+    - name: Build Backend
+      run: pnpm --filter server build
+
     - name: Build Frontend
       run: pnpm --filter client run build

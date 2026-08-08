@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/server/api/index.js"
+      "destination": "/server/src/api/index.ts"
     },
     {
       "source": "/(.*)",
@@ -19,7 +19,7 @@
       }
     },
     {
-      "src": "server/api/index.js",
+      "src": "server/src/api/index.ts",
       "use": "@vercel/node"
     }
   ]
