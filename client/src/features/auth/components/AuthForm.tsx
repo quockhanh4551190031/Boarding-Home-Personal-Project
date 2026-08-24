@@ -77,18 +77,28 @@ function RegisterFields({
     register,
     handleSubmit,
     trigger,
+	watch,
     formState: { errors, isSubmitting },
   } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
     mode: "onTouched",
     defaultValues: { email: "", phone: "", password: "", confirmPassword: "" },
   });
+  
+  const password = watch("password");
+  const confirmPassword = watch("confirmPassword");
+  
+  const isPasswordInvalid = !password || !confirmPassword || password !== confirmPassword;
 
   const onSubmit = handleSubmit((values) => onValid(values));
 
   const handleContinue = async () => {
     const ok = await trigger(["email", "phone", "password", "confirmPassword"]);
-    if (ok) setStep(2);
+    //if (ok) setStep(2);
+	if (!ok) {
+		return;
+	}
+	setStep(2);
   };
 
   if (step === 1) {
@@ -127,7 +137,7 @@ function RegisterFields({
           />
         </Field>
 
-        <Field label="Xác nhận mật khẩu" error={errors.confirmPassword?.message}>
+        <Field label="Xác nhận mật khẩu" error={errors.confirmPassword?.message ?? (isPasswordInvalid ? "Mật khẩu không khớp" : undefined)}>
           <Input
             type="password"
             placeholder="••••••••"
@@ -136,7 +146,7 @@ function RegisterFields({
           />
         </Field>
 
-        <Button type="button" className="w-full" onClick={handleContinue}>
+        <Button type="button" className="w-full" onClick={handleContinue} disabled={isPasswordInvalid}>
           Tiếp tục
         </Button>
       </form>
