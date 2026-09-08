@@ -9,21 +9,23 @@ Tài liệu cách dùng các chức năng vừa thêm: **JWT middleware**, `POST
 ### `server/.env` (local, đã có sẵn — điền giá trị thật)
 
 ```env
-SUPABASE_URL=https://<project-ref>.supabase.co        # BẮT BUỘC (dùng cho JWKS verify token)
+SUPABASE_URL=https://<project-ref>.supabase.co        # BẮT BUỘC (dùng cho JWKS verify token ES256)
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>          # chỉ dùng backend (admin API)
 DATABASE_URL=postgresql://postgres.<ref>:[pw]@aws-0-<region>.pooler.supabase.com:6543/postgres
 DIRECT_URL=postgresql://postgres.[pw]@aws-0-<region>.pooler.supabase.com:5432/postgres
 SUPABASE_WEBHOOK_SECRET=                              # tuỳ chọn; để trống = /api/auth/sync bị tắt (503)
 
-# ❌ SUPABASE_JWT_SECRET không còn dùng nữa:
+# SUPABASE_JWT_SECRET (tuỳ chọn — fallback HS256):
 # Supabase GoTrue mặc định ký JWT bằng ES256 (asymmetric) và publish public key qua JWKS.
-# Middleware tự fetch JWKS từ {SUPABASE_URL}/auth/v1/.well-known/jwks.json và verify bằng jose.
-# Có thể xoá khỏi .env và Vercel nếu muốn.
+# Middleware tự detect thuật toán trong JWT header:
+#   - ES256 → fetch JWKS từ {SUPABASE_URL}/auth/v1/.well-known/jwks.json, verify bằng jose.
+#   - HS256 → verify bằng SUPABASE_JWT_SECRET (legacy, cho project Supabase cũ chưa chuyển sang ES256).
+# Nếu project của bạn đã dùng ES256 (mặc định từ 2024+), có thể xoá SUPABASE_JWT_SECRET.
 ```
 
 ### Vercel (Production/Preview)
 
-Vào **Project → Settings → Environment Variables**, thêm đúng 5 biến trên (riêng `SUPABASE_WEBHOOK_SECRET` có thể bỏ qua).
+Vào **Project → Settings → Environment Variables**, thêm đúng 5 biến trên (riêng `SUPABASE_WEBHOOK_SECRET` có thể bỏ qua; `SUPABASE_JWT_SECRET` chỉ cần nếu project Supabase vẫn dùng HS256).
 Package Manager phải là **pnpm**.
 
 > Sửa `.env` chỉ ảnh hưởng máy local. Deploy lên Vercel **phải** set lại từng biến trong Settings, rồi Redeploy.
@@ -195,7 +197,10 @@ router.get("/posts", requireAuth, async (req, res, next) => {
 Luật hiện tại:
 
 - **Chỉ verify chữ ký & hạn token**, chưa phân quyền theo role. Muốn giới hạn role, thêm middleware `requireRole("LANDLORD")` sau này (nằm ngoài Task 1.8).
-- Middleware fetch JWKS từ `{SUPABASE_URL}/auth/v1/.well-known/jwks.json` (1 lần, cache lại); verify bằng `jose` với `algorithms: ["ES256"]`, `audience: "authenticated"`. Hoàn toàn local sau khi fetch JWKS.
+- Middleware đọc JWT header bằng `decodeProtectedHeader()`, tự detect thuật toán:
+  - **ES256** (mặc định Supabase hiện tại) → fetch JWKS từ `{SUPABASE_URL}/auth/v1/.well-known/jwks.json` (1 lần, cache lại), verify bằng `jose` với `algorithms: ["ES256"]`, `audience: "authenticated"`.
+  - **HS256** (legacy) → verify bằng `SUPABASE_JWT_SECRET` (nếu có) với `algorithms: ["HS256"]`.
+- Hoàn toàn local sau khi fetch JWKS (không gọi network mỗi request).
 - `role` đọc từ `user_metadata` — nếu đổi role thì phải cập nhật metadata hoặc ưu tiên đọc từ bảng `User` (khuyến nghị ở các task sau).
 - Token Supabase mặc định sống **1 giờ**; `supabase-js` trên FE tự refresh. Backend không cần làm gì.
 

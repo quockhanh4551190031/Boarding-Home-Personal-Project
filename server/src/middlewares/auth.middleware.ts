@@ -5,8 +5,7 @@ import {
   errors as joseErrors,
   jwtVerify,
   type JWTPayload,
-  type JWTHeaderParameters,
-  type KeyLike,
+  type ProtectedHeaderParameters,
 } from "jose";
 
 import { AppError } from "../utils/AppError.js";
@@ -97,10 +96,10 @@ const getHs256Key = (): Uint8Array | null => {
  * KHÔNG dùng decodeJwt().
  */
 const resolveVerification = (
-  header: JWTHeaderParameters,
+  header: ProtectedHeaderParameters,
 ):
   | {
-      key: KeyLike | Uint8Array | ReturnType<typeof createRemoteJWKSet>;
+      key: Parameters<typeof jwtVerify>[1];
       algorithms: string[];
     }
   | null => {
@@ -179,7 +178,7 @@ export const requireAuth = async (
    *
    * KHÔNG dùng decodeJwt().
    */
-  let header: JWTHeaderParameters;
+  let header: ProtectedHeaderParameters;
 
   try {
     header = decodeProtectedHeader(token);
