@@ -1,10 +1,16 @@
 {
   "version": 2,
   "framework": null,
-  "buildCommand": "pnpm --filter client run build",
+  "installCommand": "pnpm install",
+  "buildCommand": "pnpm --filter server exec prisma generate && pnpm --filter server build && pnpm --filter client run build",
   "outputDirectory": "client/dist",
+  "functions": {
+    "api/index.ts": {
+      "includeFiles": "server/dist/**"
+    }
+  },
   "rewrites": [
-		{ "source": "/api/(.*)", "destination": "/api" },
-		{ "source": "/(.*)", "destination": "/index.html" }
-	]
+    { "source": "/api/(.*)", "destination": "/api" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
