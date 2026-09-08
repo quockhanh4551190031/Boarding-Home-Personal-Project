@@ -9,7 +9,7 @@ import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "../../lib/supabase";
 import type { LoginInput, RegisterInput } from "shared/schemas/auth.schema";
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 // Envelope chuẩn của backend: { success, data } | { success: false, error: { code, message } }
 interface ApiError {
