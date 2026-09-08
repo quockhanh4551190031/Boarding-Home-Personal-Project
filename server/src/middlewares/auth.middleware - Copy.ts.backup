@@ -1,0 +1,149 @@
+import type { NextFunction, Request, Response } from "express";
+import {
+  createRemoteJWKSet,
+  decodeJwt,
+  errors as joseErrors,
+  jwtVerify,
+  type JWTPayload,
+} from "jose";
+
+import { AppError } from "../utils/AppError.js";
+
+export interface AuthUser {
+  /** auth.users.id — đồng thời là khóa chính của public."User" */
+  id: string;
+  email?: string;
+  phone?: string;
+  /** Vai trò nghiệp vụ lưu trong user_metadata: TENANT | LANDLORD | ADMIN */
+  role?: string;
+}
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: AuthUser;
+    }
+  }
+}
+
+interface SupabaseJwtPayload extends JWTPayload {
+  sub?: string;
+  email?: string;
+  user_metadata?: { phone?: string; role?: string };
+}
+
+const extractBearerToken = (header?: string): string | null => {
+  if (!header) {
+    return null;
+  }
+
+  const [scheme, token] = header.split(" ");
+  if (!token || scheme.toLowerCase() !== "bearer") {
+    return null;
+  }
+
+  return token.trim();
+};
+
+// Supabase GoTrue hiện tại ký JWT bằng ES256 (asymmetric), public key publish qua JWKS.
+// Project cũ / bật legacy JWT secret thì token là HS256 (đối xứng với SUPABASE_JWT_SECRET).
+// Middleware hỗ trợ CẢ HAI để không phụ thuộc cấu hình project.
+const jwksUrl = process.env.SUPABASE_URL
+  ? new URL(`${process.env.SUPABASE_URL.replace(/\/$/, "")}/auth/v1/.well-known/jwks.json`)
+  : null;
+
+// JWKS fetch 1 lần rồi cache; verify hoàn toàn local, không gọi mạng mỗi request.
+const jwks = jwksUrl ? createRemoteJWKSet(jwksUrl) : null;
+
+const getHs256Key = (): Uint8Array | null => {
+  const secret = process.env.SUPABASE_JWT_SECRET;
+  return secret ? new TextEncoder().encode(secret) : null;
+};
+
+// Chọn strategy theo thuật toán trong header của chính token đó.
+const resolveVerification = (
+  header: JWTHeaderParameters,
+): { key: KeyLike | Uint8Array; algorithms: string[] } | null => {
+  if (header.alg === "ES256") {
+    return jwks ? { key: jwks as unknown as KeyLike, algorithms: ["ES256"] } : null;
+  }
+  if (header.alg === "HS256") {
+    const key = getHs256Key();
+    return key ? { key, algorithms: ["HS256"] } : null;
+  }
+  return null;
+};
+
+export const requireAuth = async (
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  const token = extractBearerToken(req.headers.authorization);
+  if (!token) {
+    next(new AppError(401, "UNAUTHORIZED", "Thiếu access token"));
+    return;
+  }
+
+  if (!jwks && !getHs256Key()) {
+    next(
+      new AppError(
+        500,
+        "AUTH_NOT_CONFIGURED",
+        "Máy chủ chưa cấu hình SUPABASE_URL hoặc SUPABASE_JWT_SECRET",
+      ),
+    );
+    return;
+  }
+
+  let header: JWTHeaderParameters;
+  try {
+    const decoded = decodeJwt(token);
+    header = { alg: decoded.alg, ...(decoded.kid ? { kid: decoded.kid } : {}) } as
+      JWTHeaderParameters;
+  } catch {
+    next(new AppError(401, "INVALID_TOKEN", "Access token không hợp lệ"));
+    return;
+  }
+
+  const strategy = resolveVerification(header);
+  if (!strategy) {
+    next(
+      new AppError(
+        401,
+        "UNSUPPORTED_TOKEN_ALG",
+        `Thuật toán token ${String(header.alg)} không được hỗ trợ hoặc máy chủ thiếu cấu hình tương ứng`,
+      ),
+    );
+    return;
+  }
+
+  try {
+    const { payload } = await jwtVerify(token, strategy.key, {
+      algorithms: strategy.algorithms,
+      // Supabase Access Token dùng aud = "authenticated"
+      audience: "authenticated",
+    });
+
+    const claims = payload as SupabaseJwtPayload;
+    if (!claims.sub) {
+      next(new AppError(401, "INVALID_TOKEN", "Access token không hợp lệ"));
+      return;
+    }
+
+    req.user = {
+      id: claims.sub,
+      email: claims.email,
+      phone: claims.user_metadata?.phone,
+      role: claims.user_metadata?.role,
+    };
+
+    next();
+  } catch (error) {
+    if (error instanceof joseErrors.JWTExpired) {
+      next(new AppError(401, "TOKEN_EXPIRED", "Access token đã hết hạn"));
+      return;
+    }
+    next(new AppError(401, "INVALID_TOKEN", "Access token không hợp lệ hoặc đã hết hạn"));
+  }
+};
