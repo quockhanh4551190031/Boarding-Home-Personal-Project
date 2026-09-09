@@ -5,7 +5,8 @@
   "main": "schemas/auth.schema.ts",
   "types": "schemas/auth.schema.ts",
   "exports": {
-    ".": "./schemas/auth.schema.ts"
+    ".": "./schemas/auth.schema.ts",
+    "./schemas/user.schema": "./schemas/user.schema.ts"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

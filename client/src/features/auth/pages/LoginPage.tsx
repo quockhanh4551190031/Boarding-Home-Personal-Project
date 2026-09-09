@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AuthForm } from "../components/AuthForm";
 import { useAuth } from "../AuthContext";
 import type { LoginInput, RegisterInput } from "shared/schemas/auth.schema";
@@ -12,6 +12,8 @@ import {
 } from "../../../components/ui/card";
 
 export function LoginPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { signIn } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -20,8 +22,15 @@ export function LoginPage() {
     setError(null);
     setSuccess(false);
     const { error: err } = await signIn(values as LoginInput);
-    if (err) setError(err);
-    else setSuccess(true);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setSuccess(true);
+    // Đi tới /home — ProtectedRoute sẽ redirect sang /onboarding nếu profile chưa complete.
+    // Nếu có "from" trong state (từ ProtectedRoute bị đẩy ra), ưu tiên quay lại đó.
+    const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname;
+    navigate(from && from !== "/login" ? from : "/home", { replace: true });
   };
 
   return (

@@ -14,6 +14,9 @@ SUPABASE_SERVICE_ROLE_KEY=<service-role-key>          # chỉ dùng backend (adm
 DATABASE_URL=postgresql://postgres.<ref>:[pw]@aws-0-<region>.pooler.supabase.com:6543/postgres
 DIRECT_URL=postgresql://postgres.[pw]@aws-0-<region>.pooler.supabase.com:5432/postgres
 SUPABASE_WEBHOOK_SECRET=                              # tuỳ chọn; để trống = /api/auth/sync bị tắt (503)
+CORS_ORIGIN=                                          # tuỳ chọn, comma-separated. Mặc định = http://localhost:5173.
+                                                     # Trong dev, mọi localhost:* / 127.0.0.1:* tự được allow (Vite có thể nhảy port).
+                                                     # Prod: phải set rõ origin FE.
 
 # SUPABASE_JWT_SECRET (tuỳ chọn — fallback HS256):
 # Supabase GoTrue mặc định ký JWT bằng ES256 (asymmetric) và publish public key qua JWKS.
@@ -161,21 +164,86 @@ curl -X POST http://localhost:3001/api/auth/sync \
 
 Chưa set secret → 503 `WEBHOOK_DISABLED`; sai secret → 401 `INVALID_WEBHOOK_SECRET`.
 
+### 3.5 Cập nhật hồ sơ (Onboarding) — `PATCH /api/users/me`
+
+```bash
+curl -X PATCH http://localhost:3001/api/users/me \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"fullName":"Nguyen Van A","phone":"0987654321","cccd":"001099000000"}'
+```
+
+- `phone` — bắt buộc đúng định dạng VN (`0xxxxxxxxx` / `+84xxxxxxxxx`)
+- `fullName` — 2…50 ký tự
+- `cccd` — tuỳ chọn (tối đa 20 ký tự)
+- Ít nhất **1** trong 3 trường phải có → nếu body rỗng `{}` nhận **400** `Cần ít nhất một trường để cập nhật`
+
+**Nghiệp vụ `isProfileComplete`:** sau khi update, nếu **cả `phone` và `fullName` đều có giá trị** → `isProfileComplete = true`. Nếu chỉ gửi 1 trong 2 → giữ nguyên `false`.
+
+| Body | Kết quả |
+|---|---|
+| `{"phone":"0909...","fullName":"Nguyen Van A"}` | 200, `isProfileComplete: true` |
+| `{"phone":"0909..."}` (chưa có fullName) | 200, `isProfileComplete: false` |
+| `{"cccd":"001..."}` (đã có phone+fullName) | 200, `isProfileComplete: true` (giữ nguyên) |
+| `{}` | 400 `VALIDATION_ERROR` |
+| `{"phone":"12345"}` | 400 `body.phone: Số điện thoại không hợp lệ` |
+| `{"fullName":"A"}` | 400 `body.fullName: Họ tên tối thiểu 2 ký tự` |
+| SĐT đã có người dùng | 409 `PHONE_EXISTS` |
+
+> `GET /api/auth/me` (Task 1.8) và `GET /api/users/me` (spec 2.1) là **cùng một handler** (gọi chung `user.service.ts`), trả cùng dữ liệu. Giữ cả 2 để không phá test Postman cũ.
+
+### 3.6 Lấy hồ sơ — `GET /api/users/me`
+
+```bash
+curl http://localhost:3001/api/users/me \
+  -H "Authorization: Bearer <access_token>"
+```
+
+Response đầy đủ hơn `/api/auth/me`:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "...",
+    "email": "...",
+    "phone": "...",
+    "fullName": "Nguyen Van A",
+    "cccd": "001099000000",
+    "bio": null,
+    "avatarUrl": null,
+    "role": "TENANT",
+    "isProfileComplete": true
+  }
+}
+```
+
 ---
 
 ## 4. Dùng trên Frontend (đã nối sẵn)
 
 `AuthContext` đã gọi `/register` và `/login` qua backend, rồi `supabase.auth.setSession(...)` để có session chuẩn của Supabase. Bạn **không cần gọi thủ công** trong màn Login/Register.
 
-Khi cần gọi API backend có bảo vệ:
+Khi cần gọi API backend có bảo vệ, **ưu tiên dùng helper `apiFetch`** (đã wrap Bearer token + envelope):
+
+```ts
+import { apiFetch } from "../../lib/api";
+import { getMe, updateMe } from "../users/userService";
+
+// Đọc profile hiện tại
+const profile = await getMe();
+
+// Cập nhật phone + fullName (set isProfileComplete=true)
+const updated = await updateMe({ fullName: "Nguyen Van A", phone: "0987654321" });
+```
+
+Hoặc gọi trực tiếp nếu cần custom path:
 
 ```ts
 import { supabase } from "../../lib/supabase";
+import { apiFetch } from "../../lib/api";
 
-const { data } = await supabase.auth.getSession();
-const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/me`, {
-  headers: { Authorization: `Bearer ${data.session?.access_token ?? ""}` },
-});
+// apiFetch tự lấy token từ session, gắn vào Authorization, parse envelope chuẩn
+const profile = await apiFetch<UserProfile>("/api/users/me");
 ```
 
 > `VITE_API_URL` để trống trên Vercel (same-origin); local dev set `http://localhost:3001`.
@@ -263,6 +331,7 @@ Nếu Supabase báo `ERROR: 3F000 schema "supabase_functions" does not exist` �
 | 500 kèm log `XX000 ... tenant/user postgres.<ref> not found` | `DATABASE_URL` sai project ref hoặc project bị pause                                | Cập nhật lại connection string (pooler 6543) |
 | 400 `VALIDATION_ERROR`                                       | Sai định dạng email/SĐT (SĐT: `0xxxxxxxxx` hoặc `+84xxxxxxxxx`), mật khẩu < 8 ký tự | Xem `error.details`                          |
 | 503 `WEBHOOK_DISABLED`                                       | Chưa set `SUPABASE_WEBHOOK_SECRET`                                                  | Set nếu cần dùng webhook,否则 bỏ qua           |
+| Browser console: `Access to fetch … has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header` | FE chạy trên port khác 5173 (5174, 5175… do Vite nhảy port) và `CORS_ORIGIN` chưa include | Dev: đã auto-allow mọi localhost:* — chỉ cần restart server. Prod: set `CORS_ORIGIN=https://your-frontend.com` |
 
 ---
 

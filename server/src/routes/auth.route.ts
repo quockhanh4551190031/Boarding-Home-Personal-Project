@@ -6,6 +6,7 @@ import { supabaseAdmin } from "../lib/supabaseAdmin.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { loginSchema, registerSchema, syncUserSchema } from "../schemas/auth.schema.js";
+import { getUserProfile } from "../services/user.service.js";
 import { AppError } from "../utils/AppError.js";
 
 export const authRouter = Router();
@@ -193,25 +194,11 @@ authRouter.post(
   },
 );
 
-// GET /api/auth/me — route mẫu có bảo vệ bằng JWT (DoD Task 1.8)
+// GET /api/auth/me — alias của /api/users/me (giữ để không phá test Postman cũ)
 authRouter.get("/me", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
-    if (!user) {
-      next(new AppError(404, "USER_NOT_FOUND", "Không tìm thấy hồ sơ người dùng"));
-      return;
-    }
-    res.json({
-      success: true,
-      data: {
-        id: user.id,
-        email: user.email,
-        phone: user.phone,
-        fullName: user.fullName,
-        role: user.role,
-        isProfileComplete: user.isProfileComplete,
-      },
-    });
+    const profile = await getUserProfile(req.user!.id);
+    res.json({ success: true, data: profile });
   } catch (error) {
     next(error);
   }

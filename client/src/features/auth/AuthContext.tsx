@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useState,
@@ -8,6 +9,8 @@ import {
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "../../lib/supabase";
 import type { LoginInput, RegisterInput } from "shared/schemas/auth.schema";
+import { getMe, type UserProfile } from "../users/userService";
+import { ApiCallError } from "../../lib/api";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
@@ -38,41 +41,81 @@ export interface SignInResult {
 interface AuthContextValue {
   session: Session | null;
   user: User | null;
+  /** Hồ sơ public."User" — null khi chưa đăng nhập hoặc fetch lỗi */
+  profile: UserProfile | null;
+  /** true trong khi đang khôi phục session + fetch profile lần đầu */
   loading: boolean;
+  /** Cờ phụ để ProtectedRoute biết khi nào profile đã fetch xong (tránh redirect loop) */
+  profileReady: boolean;
   signUp: (values: RegisterInput) => Promise<SignUpResult>;
   signIn: (values: LoginInput) => Promise<SignInResult>;
   signOut: () => Promise<void>;
+  /** Fetch lại profile từ server (gọi sau khi PATCH /api/users/me) */
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileReady, setProfileReady] = useState(false);
 
+  // Fetch profile từ server — tách hàm để dùng lại sau PATCH.
+  const fetchProfile = useCallback(async (s: Session | null) => {
+    if (!s) {
+      setProfile(null);
+      setProfileReady(true);
+      return;
+    }
+    try {
+      const p = await getMe();
+      setProfile(p);
+    } catch (error) {
+      // 404 USER_NOT_FOUND = user chưa được đồng bộ sang public."User" (edge case).
+      // Vẫn set profileReady=true để ProtectedRoute không kẹt spinner.
+      setProfile(null);
+      if (!(error instanceof ApiCallError) || error.code !== "USER_NOT_FOUND") {
+        console.warn("[auth] fetch profile failed:", error);
+      }
+    } finally {
+      setProfileReady(true);
+    }
+  }, []);
+
+  // Khôi phục session lúc đầu.
   useEffect(() => {
     let active = true;
     supabase.auth.getSession().then(({ data }) => {
-      if (active) {
-        setSession(data.session);
-        setLoading(false);
-      }
+      if (!active) return;
+      setSession(data.session);
+      setLoading(false);
+      void fetchProfile(data.session);
     });
+    return () => {
+      active = false;
+    };
+  }, [fetchProfile]);
 
+  // Lắng nghe thay đổi session (login, logout, refresh).
+  useEffect(() => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
+      // Reset cờ ready khi session thay đổi — chờ fetch profile mới.
+      setProfileReady(false);
+      void fetchProfile(nextSession);
     });
+    return () => subscription.unsubscribe();
+  }, [fetchProfile]);
 
-    return () => {
-      active = false;
-      subscription.unsubscribe();
-    };
-  }, []);
+  const refreshProfile = useCallback(async () => {
+    await fetchProfile(session);
+  }, [fetchProfile, session]);
 
   const signUp = async (values: RegisterInput): Promise<SignUpResult> => {
-    // Đăng ký qua backend: tạo auth.users + đồng bộ public."User" trong 1 request.
     try {
       const res = await fetch(`${API_URL}/api/auth/register`, {
         method: "POST",
@@ -99,7 +142,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         return { error: error?.message ?? null, session: data.session };
       }
-      // Đăng ký OK nhưng không auto-login (edge) -> coi như cần đăng nhập
       return { error: null, session: null };
     } catch {
       return { error: "Không thể kết nối máy chủ xác thực", session: null };
@@ -107,7 +149,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (values: LoginInput): Promise<SignInResult> => {
-    // Đăng nhập qua backend (xử lý cả email & SĐT), trả token rồi setSession.
     try {
       const res = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
@@ -136,7 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    setSession(null);
+    setProfile(null);
   };
 
   return (
@@ -144,10 +185,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         session,
         user: session?.user ?? null,
+        profile,
         loading,
+        profileReady,
         signUp,
         signIn,
         signOut,
+        refreshProfile,
       }}
     >
       {children}

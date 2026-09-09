@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AuthForm } from "../components/AuthForm";
 import { useAuth } from "../AuthContext";
 import type { LoginInput, RegisterInput } from "shared/schemas/auth.schema";
@@ -12,6 +12,7 @@ import {
 } from "../../../components/ui/card";
 
 export function RegisterPage() {
+  const navigate = useNavigate();
   const { signUp } = useAuth();
   const [message, setMessage] = useState<{ kind: "error" | "info" | "success"; text: string } | null>(
     null
@@ -29,7 +30,10 @@ export function RegisterPage() {
         text: "Đăng ký thành công! Vui lòng kiểm tra email để xác nhận tài khoản.",
       });
     } else {
+      // Auto-login OK. Đẩy qua /onboarding — ProtectedRoute sẽ tự lo redirect
+      // nếu user đã complete profile (không xảy ra ngay sau register).
       setMessage({ kind: "success", text: "Đăng ký thành công!" });
+      navigate("/onboarding", { replace: true });
     }
   };
 
