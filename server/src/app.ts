@@ -7,6 +7,7 @@ import { AppError } from "./utils/AppError.js";
 import { requestLogger } from "./utils/logger.js";
 import { authRouter } from "./routes/auth.route.js";
 import { userRouter } from "./routes/user.route.js";
+import { boardingHouseRouter } from "./routes/boardingHouse.route.js";
 
 const app = express();
 
@@ -58,6 +59,7 @@ app.get("/api/ping", (_req, res) => {
 
 app.use("/api/auth", authRouter);
 app.use("/api/users", userRouter);
+app.use("/api/boarding-houses", boardingHouseRouter);
 
 app.use((req, _res, next) => {
   next(new AppError(404, "NOT_FOUND", `Route ${req.method} ${req.path} not found`));

@@ -13,6 +13,11 @@ enum Role {
   ADMIN
 }
 
+enum RoomStatus {
+  AVAILABLE
+  OCCUPIED
+}
+
 model User {
   id                String    @id @default(uuid())
   email             String    @unique
@@ -27,4 +32,53 @@ model User {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   deletedAt         DateTime?
+
+  boardingHouses BoardingHouse[]
+}
+
+/// Nhà trọ / khu trọ. Gom nhiều phòng, giữ toạ độ GPS (1 lần cho cả toà nhà).
+/// `geog` do trigger SQL tự sinh từ lat/lng — Prisma KHÔNG ghi trường này.
+model BoardingHouse {
+  id          String    @id @default(uuid())
+  ownerId     String
+  name        String
+  address     String
+  ward        String?
+  district    String?
+  city        String?
+  lat         Float
+  lng         Float
+  geog        Unsupported("geography(Point, 4326)")?
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  owner User   @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  rooms Room[]
+
+  @@index([ownerId])
+}
+
+/// Phòng trọ — entity chính người thuê xem và ra quyết định.
+model Room {
+  id              String     @id @default(uuid())
+  boardingHouseId String
+  roomCode        String
+  status          RoomStatus @default(AVAILABLE)
+  price           Float
+  area            Float
+  maxOccupants    Int?
+  amenities       Json?
+  content         String?
+  images          Json?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime?
+
+  boardingHouse BoardingHouse @relation(fields: [boardingHouseId], references: [id], onDelete: Cascade)
+
+  @@index([boardingHouseId])
+  @@index([price])
+  @@index([status])
 }
